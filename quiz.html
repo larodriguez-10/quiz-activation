@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nu Quiz</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#f5f3ff; color:#1a1a2e;
+  font-family:'DM Sans',sans-serif;
+  min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px;
+}
+.screen {
+  position:fixed; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:24px; transition:opacity 0.35s, transform 0.35s; overflow-y:auto;
+}
+.screen.hidden { opacity:0; pointer-events:none; transform:scale(0.97); }
+
+/* ── REGISTRO ── */
+#registro h1 { font-family:'Syne',sans-serif; font-size:clamp(2rem,5vw,3.4rem); font-weight:800; text-align:center; margin-bottom:6px; }
+#registro h1 span { color:#7c3aed; }
+#registro .sub { color:#6b7280; font-size:1rem; text-align:center; margin-bottom:32px; }
+
+.reg-box { background:#fff; border-radius:20px; padding:28px; border:2px solid #e5e7eb; width:100%; max-width:480px; }
+.reg-box h3 { font-family:'Syne',sans-serif; font-weight:800; font-size:1.1rem; margin-bottom:16px; color:#1a1a2e; }
+
+.player-row { display:flex; gap:8px; margin-bottom:10px; }
+.player-row input {
+  flex:1; padding:12px 14px; border-radius:10px; border:2px solid #e5e7eb;
+  font-family:'DM Sans',sans-serif; font-size:0.95rem; color:#1a1a2e;
+  background:#f9fafb; transition:border-color 0.15s;
+  outline:none;
+}
+.player-row input:focus { border-color:#7c3aed; background:#fff; }
+.btn-remove {
+  width:40px; height:40px; border-radius:10px; border:2px solid #fee2e2;
+  background:#fff; color:#ef4444; font-size:1.1rem; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:background 0.15s; flex-shrink:0;
+}
+.btn-remove:hover { background:#fee2e2; }
+
+.btn-add {
+  width:100%; padding:11px; border-radius:10px; border:2px dashed #ddd6fe;
+  background:transparent; color:#7c3aed; font-family:'DM Sans',sans-serif;
+  font-size:0.92rem; font-weight:600; cursor:pointer; transition:background 0.15s;
+  margin-top:4px;
+}
+.btn-add:hover { background:#ede9fe; }
+
+.player-tags { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 0; min-height:20px; }
+.ptag {
+  background:#ede9fe; color:#7c3aed; border-radius:99px;
+  padding:5px 14px; font-size:0.85rem; font-weight:600;
+}
+
+.btn-jugar {
+  width:100%; margin-top:20px; padding:16px; border-radius:14px; border:none;
+  background:#7c3aed; color:#fff; font-family:'Syne',sans-serif;
+  font-size:1.05rem; font-weight:700; cursor:pointer; transition:background 0.15s, transform 0.12s;
+}
+.btn-jugar:hover { background:#6d28d9; transform:translateY(-1px); }
+.btn-jugar:disabled { background:#c4b5fd; cursor:not-allowed; transform:none; }
+
+/* ── TURNO BANNER ── */
+#turno { background:#7c3aed; }
+#turno .turno-inner { text-align:center; }
+#turno .turno-inner .who {
+  font-family:'Syne',sans-serif; font-size:clamp(2rem,7vw,4.5rem);
+  font-weight:800; color:#fff; line-height:1.1; margin-bottom:12px;
+}
+#turno .turno-inner .info { color:#ddd6fe; font-size:1rem; margin-bottom:36px; }
+.btn-listo {
+  background:#fff; color:#7c3aed; border:none; border-radius:14px;
+  padding:16px 48px; font-family:'Syne',sans-serif; font-size:1.05rem; font-weight:700;
+  cursor:pointer; transition:transform 0.12s, box-shadow 0.12s;
+  box-shadow:0 4px 20px rgba(0,0,0,0.15);
+}
+.btn-listo:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(0,0,0,0.2); }
+
+/* ── QUIZ ── */
+#quiz { max-width:700px; width:100%; }
+.progress-bar { width:100%; height:6px; background:#ddd6fe; border-radius:99px; margin-bottom:22px; overflow:hidden; }
+.progress-fill { height:100%; background:#7c3aed; border-radius:99px; transition:width 0.5s ease; }
+.q-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.q-num { font-family:'Syne',sans-serif; font-size:0.78rem; font-weight:700; color:#7c3aed; letter-spacing:0.1em; text-transform:uppercase; }
+.q-player { font-family:'Syne',sans-serif; font-size:0.78rem; font-weight:700; color:#6b7280; letter-spacing:0.06em; }
+
+.timer-ring { position:relative; width:48px; height:48px; }
+.timer-ring svg { transform:rotate(-90deg); }
+.timer-ring circle { fill:none; stroke:#ddd6fe; stroke-width:4; }
+.timer-ring .arc { stroke:#7c3aed; stroke-linecap:round; transition:stroke-dashoffset 1s linear, stroke 0.3s; }
+.timer-num { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Syne',sans-serif; font-weight:800; font-size:0.9rem; color:#1a1a2e; }
+
+.question-text {
+  font-family:'Syne',sans-serif; font-size:clamp(1rem,2.4vw,1.3rem); font-weight:700;
+  line-height:1.4; margin-bottom:20px; color:#1a1a2e;
+  background:#fff; border-radius:16px; padding:20px 24px;
+  border:2px solid #e5e7eb; min-height:70px;
+}
+.options { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.opt {
+  display:flex; align-items:center; gap:12px;
+  padding:15px 16px; border-radius:14px; border:2px solid transparent;
+  cursor:pointer; font-size:0.93rem; font-weight:600; line-height:1.35;
+  text-align:left; color:#1a1a2e; transition:transform 0.12s, box-shadow 0.12s;
+}
+.opt:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,0.1); }
+.opt[data-key="a"] { background:#ede9fe; border-color:#c4b5fd; }
+.opt[data-key="b"] { background:#e0f2fe; border-color:#7dd3fc; }
+.opt[data-key="c"] { background:#fef9c3; border-color:#fde047; }
+.opt[data-key="d"] { background:#dcfce7; border-color:#86efac; }
+.opt-label { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-family:'Syne',sans-serif; font-weight:800; font-size:0.82rem; flex-shrink:0; color:#fff; }
+.opt[data-key="a"] .opt-label { background:#7c3aed; }
+.opt[data-key="b"] .opt-label { background:#0284c7; }
+.opt[data-key="c"] .opt-label { background:#ca8a04; }
+.opt[data-key="d"] .opt-label { background:#16a34a; }
+.opt.correct { background:#bbf7d0; border-color:#16a34a; }
+.opt.wrong   { background:#fee2e2; border-color:#ef4444; opacity:0.7; }
+.opt.reveal  { background:#bbf7d0; border-color:#16a34a; }
+.opt:disabled { cursor:default; }
+
+.feedback { margin-top:16px; min-height:44px; display:flex; align-items:flex-start; gap:10px; font-size:0.92rem; font-weight:500; opacity:0; transition:opacity 0.3s; padding:12px 16px; border-radius:12px; color:#1a1a2e; }
+.feedback.show { opacity:1; }
+.feedback.ok   { background:#dcfce7; }
+.feedback.fail { background:#fee2e2; }
+.feedback .icon { font-size:1.1rem; flex-shrink:0; }
+
+.btn-next { margin-top:18px; background:#7c3aed; color:#fff; border:none; border-radius:12px; padding:13px 36px; font-family:'Syne',sans-serif; font-size:0.95rem; font-weight:700; cursor:pointer; transition:background 0.15s, transform 0.12s; display:none; }
+.btn-next.show { display:inline-flex; }
+.btn-next:hover { background:#6d28d9; transform:translateY(-1px); }
+
+/* ── RESULTADO INDIVIDUAL ── */
+#indiv { max-width:420px; width:100%; text-align:center; }
+#indiv .ind-name { font-family:'Syne',sans-serif; font-size:clamp(1.6rem,5vw,2.6rem); font-weight:800; color:#1a1a2e; margin-bottom:4px; }
+#indiv .ind-score { font-family:'Syne',sans-serif; font-size:clamp(3rem,10vw,5rem); font-weight:800; color:#7c3aed; line-height:1; margin:12px 0 4px; }
+#indiv .ind-label { color:#6b7280; font-size:1rem; margin-bottom:24px; }
+#indiv .ind-bars { width:100%; margin-bottom:24px; }
+.rbar { display:flex; align-items:center; gap:12px; margin-bottom:10px; font-size:0.85rem; }
+.rbar-q { width:20px; color:#6b7280; text-align:right; font-weight:700; }
+.rbar-track { flex:1; height:10px; background:#e5e7eb; border-radius:99px; overflow:hidden; }
+.rbar-fill { height:100%; border-radius:99px; width:0; transition:width 0.8s ease; }
+.rbar-fill.ok   { background:#16a34a; }
+.rbar-fill.fail { background:#ef4444; }
+.rbar-icon { font-size:1rem; }
+.btn-siguiente-j { background:#7c3aed; color:#fff; border:none; border-radius:12px; padding:14px 40px; font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; cursor:pointer; transition:background 0.15s, transform 0.12s; }
+.btn-siguiente-j:hover { background:#6d28d9; transform:translateY(-1px); }
+
+/* ── PODIO ── */
+#podio { max-width:560px; width:100%; text-align:center; }
+#podio h2 { font-family:'Syne',sans-serif; font-size:clamp(1.8rem,5vw,3rem); font-weight:800; color:#1a1a2e; margin-bottom:6px; }
+#podio .pod-sub { color:#6b7280; font-size:0.95rem; margin-bottom:36px; }
+
+.podio-stage { display:flex; align-items:flex-end; justify-content:center; gap:12px; margin-bottom:32px; }
+.pod-col { display:flex; flex-direction:column; align-items:center; gap:8px; }
+.pod-medal { font-size:2rem; }
+.pod-name { font-family:'Syne',sans-serif; font-weight:800; font-size:0.9rem; color:#1a1a2e; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pod-pts { font-size:0.82rem; font-weight:600; color:#6b7280; }
+.pod-block { border-radius:12px 12px 0 0; width:100px; display:flex; align-items:center; justify-content:center; font-family:'Syne',sans-serif; font-weight:800; font-size:1.4rem; color:#fff; }
+.pod-block.first  { background:#f59e0b; height:110px; }
+.pod-block.second { background:#94a3b8; height:80px; }
+.pod-block.third  { background:#cd7f32; height:60px; }
+
+.ranking-list { width:100%; margin-bottom:28px; }
+.rank-row { display:flex; align-items:center; gap:12px; padding:12px 16px; background:#fff; border-radius:12px; margin-bottom:8px; border:2px solid #e5e7eb; }
+.rank-pos { font-family:'Syne',sans-serif; font-weight:800; font-size:1rem; color:#7c3aed; width:28px; text-align:center; }
+.rank-name { flex:1; font-weight:600; font-size:0.95rem; text-align:left; }
+.rank-score { font-family:'Syne',sans-serif; font-weight:800; font-size:1rem; color:#1a1a2e; }
+.rank-bar-wrap { width:80px; height:8px; background:#e5e7eb; border-radius:99px; overflow:hidden; }
+.rank-bar { height:100%; background:#7c3aed; border-radius:99px; width:0; transition:width 1s ease; }
+
+.btn-reset { background:#7c3aed; color:#fff; border:none; border-radius:12px; padding:14px 44px; font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; cursor:pointer; transition:background 0.15s, transform 0.15s; }
+.btn-reset:hover { background:#6d28d9; transform:translateY(-2px); }
+
+@media(max-width:520px){ .options{grid-template-columns:1fr;} .pod-block{width:80px;} }
+</style>
+</head>
+<body>
+
+<!-- 1. REGISTRO -->
+<div class="screen" id="registro">
+  <h1>Nu <span>Quiz</span></h1>
+  <p class="sub">XSell & Experiments · ¿Quién sabe más?</p>
+  <div class="reg-box">
+    <h3>👥 ¿Quiénes juegan?</h3>
+    <div id="playerInputs">
+      <div class="player-row">
+        <input type="text" placeholder="Nombre jugador 1" maxlength="20">
+      </div>
+      <div class="player-row">
+        <input type="text" placeholder="Nombre jugador 2" maxlength="20">
+      </div>
+    </div>
+    <button class="btn-add" onclick="addPlayer()">+ Agregar jugador</button>
+    <div class="player-tags" id="playerTags"></div>
+    <button class="btn-jugar" id="btnJugar" onclick="iniciarJuego()" disabled>Empezar →</button>
+  </div>
+</div>
+
+<!-- 2. TURNO BANNER -->
+<div class="screen hidden" id="turno">
+  <div class="turno-inner">
+    <div class="who" id="turnoNombre"></div>
+    <div class="info" id="turnoInfo"></div>
+    <button class="btn-listo" onclick="startQuiz()">¡Listo! →</button>
+  </div>
+</div>
+
+<!-- 3. QUIZ -->
+<div class="screen hidden" id="quiz">
+  <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+  <div class="q-header">
+    <span class="q-num" id="qNum">Pregunta 1 / 5</span>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="q-player" id="qPlayer"></span>
+      <div class="timer-ring">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <circle cx="24" cy="24" r="19"/>
+          <circle cx="24" cy="24" r="19" class="arc" id="arc" stroke-dasharray="119.4" stroke-dashoffset="0"/>
+        </svg>
+        <div class="timer-num" id="timerNum">20</div>
+      </div>
+    </div>
+  </div>
+  <div class="question-text" id="qText"></div>
+  <div class="options" id="options"></div>
+  <div class="feedback" id="feedback">
+    <span class="icon" id="fbIcon"></span>
+    <span class="msg" id="fbMsg"></span>
+  </div>
+  <button class="btn-next" id="btnNext" onclick="nextQuestion()">Siguiente →</button>
+</div>
+
+<!-- 4. RESULTADO INDIVIDUAL -->
+<div class="screen hidden" id="indiv">
+  <div class="ind-name" id="indNombre"></div>
+  <div class="ind-score" id="indScore"></div>
+  <div class="ind-label" id="indLabel"></div>
+  <div class="ind-bars" id="indBars"></div>
+  <button class="btn-siguiente-j" id="btnSigJugador" onclick="siguienteJugador()"></button>
+</div>
+
+<!-- 5. PODIO -->
+<div class="screen hidden" id="podio">
+  <h2>🏆 Podio</h2>
+  <p class="pod-sub" id="podSub"></p>
+  <div class="podio-stage" id="podioStage"></div>
+  <div class="ranking-list" id="rankingList"></div>
+  <button class="btn-reset" onclick="resetTodo()">Jugar de nuevo</button>
+</div>
+
+<script>
+const Q = [
+  { q:"Bancolombia crash: ¿cuál fue el lift en released → first deposit (7 días) para el copy transaccional?",
+    opts:{a:"+2.5%",b:"−11.8%",c:"+17.8%",d:"+10%"}, answer:"c",
+    explain:"Copy transaccional: +17.8%. Security copy: solo +2.5%." },
+  { q:"XSell funnel (sem. 18 mayo): ¿cuál fue el Offered → Started de Cuenta XSell?",
+    opts:{a:"12.5%",b:"4.56%",c:"1.2%",d:"18.9%"}, answer:"b",
+    explain:"Credit 2.55% · Credit Fee 3.33% · Cuenta 4.56%." },
+  { q:"¿Qué % de los clicks de XSell pasan por el Product Widget?",
+    opts:{a:"30–35%",b:"Más del 90%",c:"~50%",d:"71–74%"}, answer:"d",
+    explain:"71–74% del tráfico XSell pasa por el Product Widget." },
+  { q:"Cuenta Mkt Screen: ¿quiénes tuvieron mayor release rate?",
+    opts:{a:"Full-readers (21–30s)",b:"Sub-readers (0–20s)",c:"Ambos ~50%",d:"Over-readers (31s+)"}, answer:"b",
+    explain:"Sub-readers: 58–60%. Full-readers: 46.3%." },
+  { q:"En menos de un año, ¿qué método desplazó a PSE como primer depósito?",
+    opts:{a:"ACH",b:"Débito automático",c:"Bre-B",d:"Transferencia bancaria"}, answer:"c",
+    explain:"PSE: 82.5% → 44.1%. Bre-B: 5% → 51.3%." }
+];
+
+// Estado global
+let players = [];       // [{name, score, results}]
+let curPlayer = 0;      // índice del jugador actual
+let cur = 0;            // pregunta actual
+let score = 0;
+let results = [];
+let timer, timeLeft;
+const circ = 2 * Math.PI * 19;
+
+// ── REGISTRO ──
+const inputsDiv = document.getElementById('playerInputs');
+
+function updateBtnJugar() {
+  const vals = [...inputsDiv.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean);
+  document.getElementById('btnJugar').disabled = vals.length < 2;
+  // tags preview
+  const tags = document.getElementById('playerTags');
+  tags.innerHTML = vals.map(v => `<span class="ptag">${v}</span>`).join('');
+}
+
+inputsDiv.addEventListener('input', updateBtnJugar);
+
+function addPlayer() {
+  const rows = inputsDiv.querySelectorAll('.player-row');
+  if (rows.length >= 8) return;
+  const n = rows.length + 1;
+  const row = document.createElement('div');
+  row.className = 'player-row';
+  row.innerHTML = `<input type="text" placeholder="Nombre jugador ${n}" maxlength="20">
+    <button class="btn-remove" onclick="removePlayer(this)">×</button>`;
+  row.querySelector('input').addEventListener('input', updateBtnJugar);
+  inputsDiv.appendChild(row);
+  updateBtnJugar();
+}
+
+function removePlayer(btn) {
+  btn.parentElement.remove();
+  updateBtnJugar();
+}
+
+function iniciarJuego() {
+  const names = [...inputsDiv.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean);
+  players = names.map(name => ({ name, score: 0, results: [] }));
+  curPlayer = 0;
+  mostrarTurno();
+}
+
+// ── TURNO ──
+function mostrarTurno() {
+  const p = players[curPlayer];
+  document.getElementById('turnoNombre').textContent = p.name;
+  document.getElementById('turnoInfo').textContent =
+    `Jugador ${curPlayer + 1} de ${players.length} · 5 preguntas · 20 seg c/u`;
+  show('turno');
+}
+
+// ── QUIZ ──
+function startQuiz() {
+  cur = 0; score = 0; results = [];
+  show('quiz');
+  load();
+}
+
+function load() {
+  const q = Q[cur];
+  document.getElementById('qNum').textContent = `Pregunta ${cur + 1} / ${Q.length}`;
+  document.getElementById('qPlayer').textContent = players[curPlayer].name;
+  document.getElementById('progress').style.width = `${(cur / Q.length) * 100}%`;
+  document.getElementById('qText').textContent = q.q;
+  const d = document.getElementById('options'); d.innerHTML = '';
+  ['a','b','c','d'].forEach(k => {
+    const b = document.createElement('button');
+    b.className = 'opt'; b.dataset.key = k;
+    b.innerHTML = `<span class="opt-label">${k.toUpperCase()}</span>${q.opts[k]}`;
+    b.onclick = () => pick(k);
+    d.appendChild(b);
+  });
+  document.getElementById('feedback').className = 'feedback';
+  document.getElementById('btnNext').className = 'btn-next';
+  tick();
+}
+
+function tick() {
+  timeLeft = 20; arc(20);
+  document.getElementById('timerNum').textContent = 20;
+  timer = setInterval(() => {
+    timeLeft--;
+    document.getElementById('timerNum').textContent = timeLeft;
+    arc(timeLeft);
+    document.querySelector('.arc').style.stroke = timeLeft <= 5 ? '#ef4444' : '#7c3aed';
+    if (timeLeft <= 0) { clearInterval(timer); tout(); }
+  }, 1000);
+}
+
+function arc(t) { document.getElementById('arc').style.strokeDashoffset = circ - (t / 20) * circ; }
+
+function tout() { lock(); rev(); fb(false, "⏱ Tiempo agotado. " + Q[cur].explain); results.push(false); nxt(); }
+
+function pick(k) {
+  clearInterval(timer);
+  const ok = k === Q[cur].answer; if (ok) score++;
+  results.push(ok); lock();
+  document.querySelectorAll('.opt').forEach(b => {
+    if (b.dataset.key === k && !ok) b.classList.add('wrong');
+    if (b.dataset.key === Q[cur].answer) b.classList.add('correct');
+  });
+  fb(ok, (ok ? '¡Correcto! ' : 'Incorrecto. ') + Q[cur].explain); nxt();
+}
+
+function lock() { document.querySelectorAll('.opt').forEach(b => b.setAttribute('disabled', true)); }
+function rev() { document.querySelectorAll('.opt').forEach(b => { if (b.dataset.key === Q[cur].answer) b.classList.add('reveal'); }); }
+
+function fb(ok, msg) {
+  const f = document.getElementById('feedback');
+  document.getElementById('fbIcon').textContent = ok ? '✅' : '❌';
+  document.getElementById('fbMsg').textContent = msg;
+  f.className = 'feedback show ' + (ok ? 'ok' : 'fail');
+}
+
+function nxt() {
+  const b = document.getElementById('btnNext'); b.className = 'btn-next show';
+  b.textContent = cur < Q.length - 1 ? 'Siguiente →' : 'Ver mi resultado →';
+}
+
+function nextQuestion() {
+  cur++;
+  if (cur >= Q.length) finalizarJugador();
+  else load();
+}
+
+// ── RESULTADO INDIVIDUAL ──
+function finalizarJugador() {
+  players[curPlayer].score = score;
+  players[curPlayer].results = [...results];
+
+  document.getElementById('indNombre').textContent = players[curPlayer].name;
+  document.getElementById('indScore').textContent = `${score}/5`;
+  const msgs = ['😬 Toca releer el doc','📊 Hay margen','🔥 Sólido','💜 Muy bien','🏆 Perfecto'];
+  document.getElementById('indLabel').textContent = msgs[score] || msgs[0];
+
+  const bars = document.getElementById('indBars'); bars.innerHTML = '';
+  results.forEach((ok, i) => {
+    bars.innerHTML += `<div class="rbar">
+      <span class="rbar-q">${i+1}</span>
+      <div class="rbar-track"><div class="rbar-fill ${ok?'ok':'fail'}" id="ib${i}"></div></div>
+      <span class="rbar-icon">${ok?'✅':'❌'}</span>
+    </div>`;
+  });
+
+  const hayMas = curPlayer < players.length - 1;
+  const btn = document.getElementById('btnSigJugador');
+  btn.textContent = hayMas
+    ? `Siguiente: ${players[curPlayer + 1].name} →`
+    : '🏆 Ver el podio →';
+
+  show('indiv');
+  setTimeout(() => results.forEach((ok, i) => { document.getElementById('ib'+i).style.width = ok ? '100%' : '28%'; }), 100);
+}
+
+function siguienteJugador() {
+  curPlayer++;
+  if (curPlayer < players.length) mostrarTurno();
+  else mostrarPodio();
+}
+
+// ── PODIO ──
+function mostrarPodio() {
+  const sorted = [...players].sort((a, b) => b.score - a.score);
+  const maxScore = sorted[0].score;
+
+  document.getElementById('podSub').textContent =
+    `${players.length} jugadores · ${Q.length} preguntas`;
+
+  // Podio visual (top 3)
+  const stage = document.getElementById('podioStage');
+  stage.innerHTML = '';
+  const positions = sorted.length >= 3
+    ? [sorted[1], sorted[0], sorted[2]]   // 2°, 1°, 3° para el efecto visual
+    : sorted.length === 2
+    ? [sorted[1], sorted[0]]
+    : [sorted[0]];
+
+  const classes = sorted.length >= 3 ? ['second','first','third'] : ['second','first'];
+  const medals  = sorted.length >= 3 ? ['🥈','🥇','🥉'] : ['🥈','🥇'];
+  const nums    = sorted.length >= 3 ? ['2°','1°','3°'] : ['2°','1°'];
+
+  if (sorted.length === 1) {
+    stage.innerHTML = `<div class="pod-col">
+      <div class="pod-medal">🥇</div>
+      <div class="pod-name">${sorted[0].name}</div>
+      <div class="pod-pts">${sorted[0].score}/5 pts</div>
+      <div class="pod-block first">1°</div>
+    </div>`;
+  } else {
+    positions.forEach((p, i) => {
+      stage.innerHTML += `<div class="pod-col">
+        <div class="pod-medal">${medals[i]}</div>
+        <div class="pod-name">${p.name}</div>
+        <div class="pod-pts">${p.score}/5 pts</div>
+        <div class="pod-block ${classes[i]}">${nums[i]}</div>
+      </div>`;
+    });
+  }
+
+  // Lista completa
+  const list = document.getElementById('rankingList');
+  list.innerHTML = '';
+  sorted.forEach((p, i) => {
+    list.innerHTML += `<div class="rank-row">
+      <span class="rank-pos">${i+1}</span>
+      <span class="rank-name">${p.name}</span>
+      <div class="rank-bar-wrap"><div class="rank-bar" id="rb${i}" style="width:0"></div></div>
+      <span class="rank-score">${p.score}/5</span>
+    </div>`;
+  });
+
+  show('podio');
+  setTimeout(() => {
+    sorted.forEach((p, i) => {
+      document.getElementById('rb'+i).style.width = maxScore > 0 ? `${(p.score / maxScore) * 100}%` : '0%';
+    });
+  }, 150);
+}
+
+function resetTodo() {
+  players = []; curPlayer = 0;
+  // reset inputs
+  inputsDiv.innerHTML = `
+    <div class="player-row"><input type="text" placeholder="Nombre jugador 1" maxlength="20"></div>
+    <div class="player-row"><input type="text" placeholder="Nombre jugador 2" maxlength="20"></div>`;
+  inputsDiv.addEventListener('input', updateBtnJugar);
+  document.getElementById('playerTags').innerHTML = '';
+  document.getElementById('btnJugar').disabled = true;
+  show('registro');
+}
+
+function show(id) {
+  ['registro','turno','quiz','indiv','podio'].forEach(s =>
+    document.getElementById(s).classList.toggle('hidden', s !== id)
+  );
+}
+</script>
+</body>
+</html>
